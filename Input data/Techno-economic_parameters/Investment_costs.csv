@@ -1,0 +1,6 @@
+technology,cost,lifetime
+w_off,1750000,30
+CCGT,855000,30
+w_on,965000,30
+PV,540000,25
+OCGT,568000,25
