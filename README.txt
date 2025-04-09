@@ -1,4 +1,4 @@
-The model parameters in the code ('ReducedScopePhillips.jl') are now set to obtain results from the endogenous model, so if one just run the code without any changes, this model will be build.
+The model parameters in the code ('CodeModels.jl') are now set to obtain results from the endogenous model, so if one just run the code without any changes, this model will be build.
 In order to obtain the results from other models, the corresponding model parameters should be adapted.
 This can be done by adapting the code based on the table in 'ModelParameters.xlsx'.
 Each row is a different model and each column specifies which line(s) has(ve) to be adapted in the code.
