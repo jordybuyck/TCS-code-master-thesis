@@ -708,7 +708,7 @@ function process_parameters!(m::Model, co2_price::DataFrame, fuel_costs::DataFra
         end
     end
     
-    m.ext[:parameters][:IC] = Dict(i => (r * OC[i])/((1 - (1 + r)^(-LifeTime[i]))) for i in I) # [EUR/MW/yr]
+    m.ext[:parameters][:IC] = Dict(i => (r * OC[i])/((1 - (1 + r)^(-LifeTime[i]))) for i in I) # [EUR/MW-year]
 
     ## STORAGE
     ## Installed storage energy - [MWh]
@@ -856,7 +856,7 @@ function process_parameters!(m::Model, co2_price::DataFrame, fuel_costs::DataFra
         m.ext[:parameters][:LTcd][iextra] = 0
     end
 
-    m.ext[:parameters][:ICcd] = Dict() # [EUR/MW/yr]
+    m.ext[:parameters][:ICcd] = Dict() # [EUR/MW-year]
     for icd in Icd
         if icd ∈ I
             m.ext[:parameters][:ICcd][icd] = (r * OCcd[icd])/((1 - (1 + r)^(-LifeTimecd[icd])))
@@ -1193,7 +1193,7 @@ function process_parameters!(m::Model, co2_price::DataFrame, fuel_costs::DataFra
         m.ext[:parameters][:VCexp] = Dict(export_price => parse(Float64,export_price) for export_price in Pexp) # [EUR/MWh]
     end
 
-    ## Annualized investment cost of storage units - [EUR/MW/yr]
+    ## Annualized investment cost of storage units - [EUR/MWh-year]
     ICstor = m.ext[:parameters][:ICstor] = Dict()
     for istorcd in Istorcd
         if istorcd == "Battery"
