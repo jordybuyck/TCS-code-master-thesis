@@ -92,15 +92,6 @@ end
 for column in names(pv)
     pv[!,column] = coalesce.(pv[!,column], 0)
 end
-#for column in names(ROR_2012)
-#    ROR_2012[!,column] = coalesce.(ROR_2012[!,column], 0)
-#end
-#for column in names(PS_O_2012)
-#    PS_O_2012[!,column] = coalesce.(PS_O_2012[!,column], 0)
-#end
-#for column in names(RES_2012)
-#    RES_2012[!,column] = coalesce.(RES_2012[!,column], 0)
-#end
 
 ## Step 2: create model & pass data to model
 using JuMP
@@ -135,7 +126,6 @@ function define_sets!(m::Model, tech_cost_lifetime::DataFrame, lines::DataFrame,
     m.ext[:sets][:ID] = [id for id in [tech_cost_lifetime.technology[2],tech_cost_lifetime.technology[5]]] # Dispatchable generation units
     m.ext[:sets][:IV] = [iv for iv in [tech_cost_lifetime.technology[1],tech_cost_lifetime.technology[3],tech_cost_lifetime.technology[4]]] # Variable generation units
     m.ext[:sets][:Istor] = [istor for istor in [gen_efficiencies[16,"Generator_ID"],gen_efficiencies[17,"Generator_ID"],gen_efficiencies[18,"Generator_ID"],gen_efficiencies[20,"Generator_ID"],gen_efficiencies[21,"Generator_ID"]]] # Storage units
-    #m.ext[:sets][:IstorPSO] = [istor for istor in [gen_efficiencies[18,"Generator_ID"]]]
     m.ext[:sets][:IstorRES] = [istor for istor in [gen_efficiencies[20,"Generator_ID"]]]
     m.ext[:sets][:IstorROR] = [istor for istor in [gen_efficiencies[21,"Generator_ID"]]]
     m.ext[:sets][:IstorNO] = [istor for istor in [gen_efficiencies[17,"Generator_ID"],gen_efficiencies[18,"Generator_ID"],gen_efficiencies[20,"Generator_ID"],gen_efficiencies[21,"Generator_ID"]]] # Storage units focus country can not invest in
@@ -167,26 +157,6 @@ function define_sets!(m::Model, tech_cost_lifetime::DataFrame, lines::DataFrame,
             end
         end
     end
-    ## Some countries only in Node2. Add their neighbouring countries via this section
-    #if m.ext[:sets][:CDonly] == []
-    #    #m.ext[:sets][:CNODE2] = [] #Countries in Node 2, but not in Node 1
-    #    #for node2 = unique(lines[!,"Node2"])
-    #    #    if node2 ∉ unique(lines[!,"Node1"])
-    #    #        push!(m.ext[:sets][:CNODE2],node2)
-    #    #    end
-    #    #end
-    #    for row = 1:length(lines.Node1)
-    #        if lines[row,"Year"] == Year
-    #            if lines[row,"Climate Year"] == ClimateYear
-    #                if lines[row,"Parameter"] == "Export Capacity"
-    #                    if lines[row,"Node2"] == focus_country
-    #                        push!(m.ext[:sets][:CDonly],lines.Node1[row])
-    #                    end
-    #                end
-    #            end
-    #        end
-    #    end
-    #end
     m.ext[:sets][:CDonly] = unique(m.ext[:sets][:CDonly])
     deleteat!(m.ext[:sets][:CDonly], findall(x->x=="LUB1",m.ext[:sets][:CDonly])) # Ignore "LUB1" since only battery capacity and low demand
     deleteat!(m.ext[:sets][:CDonly], findall(x->x=="LUG1",m.ext[:sets][:CDonly])) # Ignore "LUG1" since not much capacities and demand
@@ -326,8 +296,6 @@ function define_sets!(m::Model, tech_cost_lifetime::DataFrame, lines::DataFrame,
     end
 
     m.ext[:sets][:Istorcd] = [istorcd for istorcd in [gen_efficiencies[16,"Generator_ID"],gen_efficiencies[17,"Generator_ID"],gen_efficiencies[18,"Generator_ID"],gen_efficiencies[20,"Generator_ID"],gen_efficiencies[21,"Generator_ID"]]]
-    ## Only add limited storage technologies: remove '#' in following line
-    #m.ext[:sets][:Istorcd] = [istorcd for istorcd in [gen_efficiencies[16,"Generator_ID"],gen_efficiencies[17,"Generator_ID"]]]
     m.ext[:sets][:IstorcdRES] = [istorcd for istorcd in [gen_efficiencies[20,"Generator_ID"]]]
     m.ext[:sets][:IstorcdROR] = [istorcd for istorcd in [gen_efficiencies[21,"Generator_ID"]]]
     #####################################################################################################################################################################
@@ -1283,10 +1251,6 @@ function build_step_3_single_country_model!(m::Model) # Investment and dispatch 
     m.ext[:constraints][:conSingleCountry1c2] = @constraint(m, [id=ID,jh=JH,jd=JD],
         gen[id,jh,jd] <= cap_gen[id]
     )
-    ## Removing RES: add following constraint
-    #m.ext[:constraints][:conSingleCountryNORES] = @constraint(m, [iv=IV],
-    #    cap_gen[iv] <= 0
-    #)
     ## Storage constraints
     if storage_included_single_country == "yes"
         m.ext[:constraints][:conSingleCountry1d] = @constraint(m, [istor=Istor,jh=JH,jd=JD],
@@ -1441,13 +1405,6 @@ function build_endogenous_direct_countries_model!(m::Model) # Investment and dis
     m.ext[:constraints][:conEndogenous1l1] = @constraint(m, [icd=Icd,cdonly=CDonly],
         cap_gen[icd,cdonly] == CAPcdonly[icd,cdonly]
     )
-    ## Removing RES: remove '#' of line codes of two following constraints and add '#' in line codes of previous constraint
-    #m.ext[:constraints][:conEndogenous1l1] = @constraint(m, [idcd=IDcd,cdonly=CDonly],
-    #    cap_gen[idcd,cdonly] == CAPcdonly[idcd,cdonly]
-    #)
-    #m.ext[:constraints][:conSingleCountryNORES] = @constraint(m, [ivcd=IVcd,cd=CD],
-    #    cap_gen[ivcd,cd] <= 0
-    #)
     ## Only five main technologies installed in focus country
     m.ext[:constraints][:conEndogenous1l2] = @constraint(m, [iextra=Iextra,c=C],
         cap_gen[iextra,c] <= 0
@@ -2004,7 +1961,6 @@ function build_IEC_submodel_1!(m::Model)
     ID = m.ext[:sets][:ID]
     IV = m.ext[:sets][:IV]
     Istor = m.ext[:sets][:Istor]
-    #IstorPSO = m.ext[:sets][:IstorPSO]
     IstorRES = m.ext[:sets][:IstorRES]
     IstorROR = m.ext[:sets][:IstorROR]
     IstorNO = m.ext[:sets][:IstorNO]
@@ -2114,12 +2070,6 @@ function build_IEC_submodel_1!(m::Model)
             e_stor[istorror,jh,jd] <= 0
         )
         ## Assume Belgium is not allowed to invest in PS_C, PS_O, RES and ROR (only investments in battery and hydrogen possible)
-        #m.ext[:constraints][:conIECSubmodel1NoPSO] = @constraint(m, [istorpso=IstorPSO],
-        #    cap_stor[istorpso] <= 0
-        #)
-        #m.ext[:constraints][:conIECSubmodel1NoRES] = @constraint(m, [istorres=IstorRES],
-        #    cap_stor[istorres] <= 0
-        #)
         m.ext[:constraints][:conIECSubmodel1NOTallSTOR] = @constraint(m, [istorno=IstorNO],
             cap_stor[istorno] <= 0
         )
@@ -2254,18 +2204,11 @@ Termination status: $(termination_status(m))
 )
 
 ## Print some output
-#@show value.(m.ext[:objective])
 if plot_figures == 1
-    #@show value(m.ext[:objective])/sum(m.ext[:timeseries][:DEMAND]) # Average generation cost for single country - [EUR/MW] = [EUR/MWh] since delta t = 1h
     @show value.(m.ext[:variables][:cap_gen])
 elseif plot_figures == 2
-    #@show value(m.ext[:objective])/(sum(sum(m.ext[:timeseries][:DEMANDcd][cd]) for cd in m.ext[:sets][:CD])) # Average generation cost for system with single country and direct neighboring countries - [EUR/MW] = [EUR/MWh] since delta t = 1h
     @show value.(m.ext[:variables][:cap_gen])
 end
-#@show value.(sum(m.ext[:variables][:gen][i,jh,jd] for jh in m.ext[:sets][:JH], jd in m.ext[:sets][:JD])/1000000 for i in m.ext[:sets][:I])
-#@show value.(sum(m.ext[:variables][:gen][iv,jh,jd] + m.ext[:expressions][:curt][iv,jh,jd] for jh in m.ext[:sets][:JH], jd in m.ext[:sets][:JD])/1000000 for iv in m.ext[:sets][:IV])
-#@show value.(m.ext[:variables][:gen])
-#@show value.(m.ext[:variables][:flow])
 
 ## Warning signal: tcs_zero cannot be "yes" if tyndp is "yes"
 if plot_figures == 3
@@ -2363,8 +2306,7 @@ if plot_figures == 1
     productionvec = [total_production[i] for i in I]
     costvec = [total_cost[comp] for comp in COMP]
     if storage_included_single_country == "no"
-        ## Save results of focus country from single country model without storage in csv.file
-        ## Save total production and installed capacities in focus country
+        ## Total production and installed capacities in focus country
         production_fc_from_single_country_model = []
         for i in I
             push!(production_fc_from_single_country_model,total_production[i])
@@ -2373,28 +2315,19 @@ if plot_figures == 1
         for capacity in value.(cap_gen[:])
             push!(capacity_fc_from_single_country_model,capacity)
         end
-        #CSV.write(joinpath(@__DIR__,"OutputData","Single country model no storage","Cap_Prod_FC_single_country.csv"),  DataFrame("Technology" => I, "Capacity" => capacity_fc_from_single_country_model, "Production" => production_fc_from_single_country_model))
-        ## Save cost components in focus country
+        ## Cost components in focus country
         cost_fc_from_single_country_model = []
         for comp in COMP
             push!(cost_fc_from_single_country_model,total_cost[comp])
         end
-        #CSV.write(joinpath(@__DIR__,"OutputData","Single country model no storage","Cost_Comp_FC_single_country.csv"),  DataFrame("Cost Component" => COMP, "Value" => cost_fc_from_single_country_model))
-        #CSV.write(joinpath(@__DIR__,"OutputData","Single country model no storage","CompCost_FC_single_country.csv"),  DataFrame("Solve time" => solve_time(m), "Variables" => num_variables(m), "Constraints" => num_constraints(m; count_variable_in_set_constraints = true), "Nonzeros" => MOI.get(m, Gurobi.ModelAttribute("NumNZs"))))
-    #elseif storage_included_single_country == "yes"
     end
 elseif plot_figures == 2
-    ## Select technologies and countries for which you would like to plot: 
-    #i = [4,7,9,10,11] #five main technologies for plots of generation and capacity mix of focus country
-    #fc = 1 # Focus country
     fc_name = "BE00"
-    #cd = 2 # Direct neighboring country
     if all_direct_neighboring_countries == "no"
-        cd_name = "FR00" # Or "FR00" or "NL00" or "UK00" or "DE00" if only one country
+        cd_name = "FR00"
     elseif all_direct_neighboring_countries == "yes"
         cd_name = "FRNLUKDE"
     end
-    #line = 1
     ## Call variables
     cap_gen = value.(m.ext[:variables][:cap_gen])
     cap_stor = value.(m.ext[:variables][:cap_stor])
@@ -2431,7 +2364,6 @@ elseif plot_figures == 2
     ## Create arrays for plotting
     genvec = [gen[icd,jh,jd,cd] for icd in Icd, jh in JH, jd in JD, cd in CD]
     cap_genvec = [cap_gen[icd,cd] for icd in Icd, cd in CD]
-    #ensvec = [ens[jh,jd,cd] for jh in JH, jd in JD, cd in CD]
     curtvec = [curt[ivcd,jh,jd,cd] for ivcd in IVcd, jh in JH, jd in JD, cd in CD]
     λvec = [λ[jh,jd,cd] for jh in JH, jd in JD, cd in CD]
     flowvec = [flow[l,jh,jd] for l in LinescdVector, jh in JH, jd in JD]
@@ -2441,8 +2373,7 @@ elseif plot_figures == 2
     costvec = [total_cost[c,comp] for c in C, comp in COMP]
     if storage_included == "no"
         if cd_name == "FRNLUKDE"
-            ## Save results of focus country from endogenous model without storage in csv.file
-            ## Save total production and installed capacities in focus country
+            ## Total production and installed capacities in focus country
             production_fc_from_endo_no_stor_model = []
             for icd in Icd
                 push!(production_fc_from_endo_no_stor_model,total_production[icd,fc_name])
@@ -2451,15 +2382,11 @@ elseif plot_figures == 2
             for capacity in value.(cap_gen[:,fc_name])
                 push!(capacity_fc_from_endo_no_stor_model,capacity)
             end
-            #CSV.write(joinpath(@__DIR__,"OutputData","Endogenous model direct neighbors no storage","Cap_Prod_FC_endo_no_stor.csv"),  DataFrame("Technology" => Icd, "Capacity" => capacity_fc_from_endo_no_stor_model, "Production" => production_fc_from_endo_no_stor_model))
-            ## Save total import and export in focus country
-            #CSV.write(joinpath(@__DIR__,"OutputData","Endogenous model direct neighbors no storage","Imp_Exp_FC_endo_no_stor.csv"),  DataFrame("Import" => total_import[fc_name], "Export" => total_export[fc_name]))
-            ## Save cost components in focus country
+            ## Cost components in focus country
             cost_fc_from_endo_no_stor_model = []
             for comp in COMP
                 push!(cost_fc_from_endo_no_stor_model,total_cost[fc_name,comp])
             end
-            #CSV.write(joinpath(@__DIR__,"OutputData","Endogenous model direct neighbors no storage","Cost_Comp_FC_endo_no_stor.csv"),  DataFrame("Cost Component" => COMP, "Value" => cost_fc_from_endo_no_stor_model))
         end
     elseif storage_included == "yes"
         if cd_name == "FRNLUKDE"
@@ -2490,53 +2417,33 @@ elseif plot_figures == 2
 elseif plot_figures == 3
     ## Call variables
     e_stor = value.(m.ext[:variables][:e_stor])
-    #ch_stor = value.(m.ext[:variables][:ch_stor])
-    #dc_stor = value.(m.ext[:variables][:dc_stor])
-    ## Save discharge variables of neigboring countries
+    ## Save storage energy level variables of neigboring countries
     for istorcd in Istorcd
         df_e_stor = DataFrame("Timestep" => TIMES)
-        #df_ch_stor = DataFrame("Timestep" => TIMES)
-        #df_dc_stor = DataFrame("Timestep" => TIMES)
         i_countA = 2
         for cdonly in CDonly
             soc_istorcd_cdonly_from_iec_model_3 = []
-            #charge_istorcd_cdonly_from_iec_model_3 = []
-            #discharge_istorcd_cdonly_from_iec_model_3 = []
             for jd in JD, jh in JH
                 push!(soc_istorcd_cdonly_from_iec_model_3, value.(e_stor[istorcd,jh,jd,cdonly]))
-                #push!(charge_istorcd_cdonly_from_iec_model_3, value.(ch_stor[istorcd,jh,jd,cdonly]))
-                #push!(discharge_istorcd_cdonly_from_iec_model_3, value.(dc_stor[istorcd,jh,jd,cdonly]))
             end
             insertcols!(df_e_stor, i_countA, cdonly => soc_istorcd_cdonly_from_iec_model_3)
-            #insertcols!(df_ch_stor, i, cdonly => charge_istorcd_cdonly_from_iec_model_3)
-            #insertcols!(df_dc_stor, i, cdonly => discharge_istorcd_cdonly_from_iec_model_3)
             i_countA = i_countA + 1
         end
         if all_direct_neighboring_countries == "yes"
             if tyndp_iec_sm3 == "no"
                 if tcs_zero_iec_sm3 == "no"
                     CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 3","TCS BM","SOC_"*string(istorcd)*"_DNC_iec_sm_3_tcs_bm.csv"), df_e_stor)
-                    #CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 3","TCS BM","Ch_"*string(istorcd)*"_DNC_iec_sm_3_tcs_bm.csv"), df_ch_stor)
-                    #CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 3","TCS BM","Dc_"*string(istorcd)*"_DNC_iec_sm_3_tcs_bm.csv"), df_dc_stor)
                     CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 3","TCS BM","CompCost_iec_sm_3_tcs_bm.csv"),  DataFrame("Solve time" => solve_time(m), "Variables" => num_variables(m), "Constraints" => num_constraints(m; count_variable_in_set_constraints = true), "Nonzeros" => MOI.get(m, Gurobi.ModelAttribute("NumNZs"))))
                 elseif tcs_zero_iec_sm3 == "yes"
                     CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 3","TCS ZERO","SOC_"*string(istorcd)*"_DNC_iec_sm_3_tcs_zero.csv"), df_e_stor)
-                    #CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 3","TCS ZERO","Ch_"*string(istorcd)*"_DNC_iec_sm_3_tcs_zero.csv"), df_ch_stor)
-                    #CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 3","TCS ZERO","Dc_"*string(istorcd)*"_DNC_iec_sm_3_tcs_zero.csv"), df_dc_stor)
                     CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 3","TCS ZERO","CompCost_iec_sm_3_tcs_zero.csv"),  DataFrame("Solve time" => solve_time(m), "Variables" => num_variables(m), "Constraints" => num_constraints(m; count_variable_in_set_constraints = true), "Nonzeros" => MOI.get(m, Gurobi.ModelAttribute("NumNZs"))))
                 end
             elseif tyndp_iec_sm3 == "yes"
                 if tcs_zero_iec_sm3 == "no"
                     CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 3","TCS TYNDP","SOC_"*string(istorcd)*"_DNC_iec_sm_3_tcs_tyndp.csv"), df_e_stor)
-                    #CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 3","TCS TYNDP","Ch_"*string(istorcd)*"_DNC_iec_sm_3_tcs_tyndp.csv"), df_ch_stor)
-                    #CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 3","TCS TYNDP","Dc_"*string(istorcd)*"_DNC_iec_sm_3_tcs_tyndp.csv"), df_dc_stor)
                     CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 3","TCS TYNDP","CompCost_iec_sm_3_tcs_tyndp.csv"),  DataFrame("Solve time" => solve_time(m), "Variables" => num_variables(m), "Constraints" => num_constraints(m; count_variable_in_set_constraints = true), "Nonzeros" => MOI.get(m, Gurobi.ModelAttribute("NumNZs"))))
                 end
             end
-        elseif all_direct_neighboring_countries == "no"
-            #CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 3","TEST FR","SOC_"*string(istorcd)*"_DNC_iec_sm_3_test.csv"), df_e_stor)
-            #CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 3","TEST FR","Ch_"*string(istorcd)*"_DNC_iec_sm_3_test.csv"), df_ch_stor)
-            #CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 3","TEST FR","Dc_"*string(istorcd)*"_DNC_iec_sm_3_test.csv"), df_dc_stor)
         end
     end
 elseif plot_figures == 4
@@ -2669,10 +2576,6 @@ elseif plot_figures == 4
         global constraints_count = constraints_count + num_constraints(m; count_variable_in_set_constraints = true)
         global nonzeros_count = nonzeros_count + MOI.get(m, Gurobi.ModelAttribute("NumNZs"))
     end
-    ################################################################################################################################################
-    ## Save lambda values for every auxiliary demand level of focus country for every time step: remove '#' in following line code
-    #CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 2","CHECK LAMBDAS BE","λ_FC_iec_sm_2.csv"), df_λ)
-    ################################################################################################################################################
     possible_prices_export = m.ext[:ouputs][:possible_prices_export] = []
     possible_prices_import = m.ext[:ouputs][:possible_prices_import] = []
     for baseload in names(df_λ)
@@ -2758,10 +2661,6 @@ elseif plot_figures == 4
                     CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 2","Storage variables optimized endogenously","CompCost_iec_sm_2_opt_stor_var_endo.csv"),  DataFrame("Solve time" => solve_time_count, "Variables" => variables_count, "Constraints" => constraints_count, "Nonzeros" => nonzeros_count, "Lambda variables" => length(possible_prices_export) + length(possible_prices_import)))
                 end
             end
-        elseif all_direct_neighboring_countries == "no"
-            #CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 2","TEST FR","AF_exp_iec_sm_2_test.csv"), df_AF_export)
-            #CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 2","TEST FR","AF_imp_iec_sm_2_test.csv"), df_AF_import)
-            #CSV.write(joinpath(@__DIR__,"OutputData","IEC submodel 2","TEST FR","CompCost_iec_sm_2_test.csv"),  DataFrame("Solve time" => solve_time_count, "Variables" => variables_count, "Constraints" => constraints_count, "Nonzeros" => nonzeros_count, "Lambda variables" => length(possible_prices_export) + length(possible_prices_import)))
         end
 elseif plot_figures == 5
     ## Call variables
